@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:amq="http://activemq.apache.org/schema/core"
+       xmlns:jms="http://www.springframework.org/schema/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans-4.0.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context-4.0.xsd
+        http://www.springframework.org/schema/jms
+        http://www.springframework.org/schema/jms/spring-jms-4.0.xsd
+        http://activemq.apache.org/schema/core
+        http://activemq.apache.org/schema/core/activemq-core-5.8.0.xsd">
+<context:component-scan base-package="mq"/>
+    <!-- ActiveMq连接工厂 默认提供服务端口是61616，默认管理工具端口是8161-->
+<amq:connectionFactory id="amqConnectionFactory" brokerURL="http://127.0.0.1:61616" userName="admin" password="admin"/>
+    <!--spring用于创建jms连接,single是对于建立JMS服务器链接的请求会一直返回同一个链接，并且会忽略Connection的close方法调用。
+       cach继承自single,新增了缓存功能，它可以缓存Session、MessageProducer和MessageConsumer
+    spring提供的connectionFactory只是用来管理connectionFactory，真正产生到jms连接的connectionFactory还是各生产厂商实现
+    -->
+    <bean id="connectionFactory" class="org.springframework.jms.connection.CachingConnectionFactory">
+        <property name="targetConnectionFactory" ref="amqConnectionFactory"/>
+        <property name="sessionCacheSize" value="100"/>
+     </bean>
+    <!-- spring JMStemplate的消息生产者  start-->
+    <!-- 定义的JMStemplate的queue类型-->
+   <bean id="jmsQueueTemplate" class="org.springframework.jms.core.JmsTemplate">
+       <constructor-arg ref="connectionFactory"/>
+       <property name="pubSubDomain" value="false"/>
+   </bean>
+    <!--定义JMStemplate的topic类型-->
+    <bean id="jmsTopicTemplate" class="org.springframework.jms.core.JmsTemplate">
+        <constructor-arg ref="connectionFactory"/>
+        <property name="pubSubDomain" value="true"/>
+    </bean>
+    <!-- spring JMStemplate的消息生产者  end-->
+    <!-- spring消费者 start-->
+    <!-- queue-->
+    <jms:listener-container acknowledge="auto" destination-type="queue" container-type="default" connection-factory="connectionFactory">
+        <jms:listener destination="test.queue" ref="queueReceiver1"/>
+        <jms:listener destination="test.queue" ref="queueReceiver1"/>
+    </jms:listener-container>
+    <!--topic-->
+    <jms:listener-container connection-factory="connectionFactory" container-type="default" destination-type="topic" acknowledge="auto">
+        <jms:listener destination="test.topic" ref="topicReceiver1"/>
+        <jms:listener destination="test.topic" ref="topicReceiver2"/>
+    </jms:listener-container>
+
+</beans>
